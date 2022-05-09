@@ -1,8 +1,6 @@
 import json
 import os
-import re
 import urllib.request
-
 allowedext = [".png",".jpg"]
 
 def getImagesByNew(subreddit, limit, destDir):
@@ -12,6 +10,7 @@ def getImagesByNew(subreddit, limit, destDir):
         jsonResponse = json.loads(response)
     except:
         print("Error getting the image list.")
+        exit()
     for i in range(limit):
         filename = jsonResponse['data']['children'][i]['data']['url'].split('/')[-1] 
         if os.path.splitext(filename)[-1] in allowedext:
@@ -31,6 +30,7 @@ def getImagesByHot(subreddit, limit, destDir):
         jsonResponse = json.loads(response)
     except:
         print("Error getting the image list.")
+        exit()
     for i in range(limit):
         filename = jsonResponse['data']['children'][i]['data']['url'].split('/')[-1] 
         if os.path.splitext(filename)[-1] in allowedext:
@@ -50,6 +50,7 @@ def getImagesByTop(subreddit, limit, destDir):
         jsonResponse = json.loads(response)
     except:
         print("Error getting the image list.")
+        exit()
     for i in range(limit):
         filename = jsonResponse['data']['children'][i]['data']['url'].split('/')[-1] 
         if os.path.splitext(filename)[-1] in allowedext:

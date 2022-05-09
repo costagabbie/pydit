@@ -7,10 +7,25 @@ Reddit media downloader written in python
 
 `mpv`: check your distro repository, also quite common package should exist there too.
 # Usage
-Usage: ./pydit.py <subreddit> <mode> <limit>
+usage: pydit.py [-h] [-s SUBREDDIT] -m MODE [-l LIMIT] [-f]
 
-subreddit: the name of the subreddit that you want to get the images without the r/
+A reddit media scraper
 
-mode: new top hot
+optional arguments:
 
-limit: limit how many posts to download
+  -h, --help            show this help message and exit
+
+-s SUBREDDIT, --subreddit SUBREDDIT
+                        Subreddit to be scraped
+                        
+-m MODE, --mode MODE  Mode that the scraper will use, options: new, top, hot
+
+-l LIMIT, --limit LIMIT
+                        How many posts will be downloaded
+
+-f, --favorite        Choose option from favorite file
+
+# TODO
+- Download videos to open with mpv
+- 
+- Download posts and print them on screen

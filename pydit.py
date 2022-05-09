@@ -1,21 +1,16 @@
 #!/bin/env python3
 import os
+from pydoc import doc
 import sys
-import xdg
+from xdg import BaseDirectory
 import subprocess
+import argparse
 from pathlib import Path
 from redditUtils.imagedownloader import getImagesByNew, getImagesByHot, getImagesByTop
 
 
-CACHE_DIR = os.path.join(xdg.XDG_CACHE_HOME,'pydit')
-#CACHE_DIR = '/home/gcs/.cache/pydit/'
-
-def printHelp():
-    print("Usage: "+sys.argv[0]+" <subreddit> <mode> <limit>\n"+
-            "subreddit: the name of the subreddit that you want to get the images without the r/\n"+
-            "mode: new top hot\n"
-            "limit: limit how many posts to download\n"
-            )
+CACHE_DIR = os.path.join(BaseDirectory.xdg_cache_home,'pydit')
+CONFIG_DIR = os.path.join(BaseDirectory.xdg_config_home,'pydit')
 
 def directoryExists(dirname):
     d = Path(dirname)
@@ -30,24 +25,60 @@ def cleanDirectory(path):
             os.remove(os.path.join(root, file))
 
 def setup():
-    print("Looks like "+CACHE_DIR+" don't exist, creating it now.")
+    print("First time running? ok, creating cache and config directories.")
     os.mkdir(CACHE_DIR)
+    os.mkdir(CONFIG_DIR)
+    with open(os.path.join(CONFIG_DIR,'favorites.txt'),'w') as filp:
+        filp.write('linuxmemes\n')
+    print("Add your favorite subreddits on "+os.path.join(CONFIG_DIR,'favorites.txt'))
 
+def getSubFromFavorites():
+    subreddits = []
+    i = 1
+    with open(os.path.join(CONFIG_DIR,'favorites.txt'),'r') as filp:
+        for line in filp :
+            print("["+str(i)+"]"+line)
+            if line[-1] == '\n':
+                subreddits.append(line[:-1])
+            else:
+                subreddits.append(line)
+            i = i+1
+    subreddit = int(input('Please select the subreddit number, or zero to quit:'))
+    if subreddit == 0:
+        exit()
+    return subreddits[subreddit-1]
 def main():
-    print("Gabbie's reddit image downloader")
-    if not directoryExists(CACHE_DIR):
+    # Script title
+    print("Gabbie's reddit media scraper")
+    # Parse the command-line arguments
+    parser = argparse.ArgumentParser(description="A reddit media scraper")
+    parser.add_argument('-s', '--subreddit', dest='subreddit', help='Subreddit to be scraped',type=str)
+    parser.add_argument('-m', '--mode', dest='mode', help='Mode that the scraper will use, options: new, top, hot', required = True, type=str)
+    parser.add_argument('-l', '--limit', dest='limit', help='How many posts will be downloaded',default=100, type=int)
+    parser.add_argument('-f', '--favorite', action= 'store_true', dest='favorite', help='Choose option from favorite file',default=False)
+    args= parser.parse_args()
+    # Check if the required directories exist on XDG config and cache user dirs
+    if (not directoryExists(CACHE_DIR)) or (not directoryExists(CONFIG_DIR)):
         setup()
+    # Check if the cache directory is empty, so we don't display repeated content from other runs
     if not directoryIsEmpty(CACHE_DIR):
         cleanDirectory(CACHE_DIR)
-    if len(sys.argv) < 4:
-        printHelp()
+    # Check if we are using the favorite subreddit list
+    if args.favorite :
+        sub = getSubFromFavorites()
+    else:
+        sub = args.subreddit
+    if sub == '' :
+        print("No subreddit specified, quitting now.")
         exit()
-    if sys.argv[2].lower() == "new":
-        getImagesByNew(sys.argv[1],int(sys.argv[3]),CACHE_DIR)
-    elif sys.argv[2].lower() == "hot":
-        getImagesByHot(sys.argv[1],int(sys.argv[3]),CACHE_DIR)
-    elif sys.argv[2].lower() == "top":
-        getImagesByTop(sys.argv[1],int(sys.argv[3]),CACHE_DIR)
+    # Check the mode that we want
+    if args.mode == 'new':
+        getImagesByNew(sub,int(args.limit),CACHE_DIR)
+    elif args.mode == 'top':
+        getImagesByTop(sub,int(args.limit),CACHE_DIR)
+    elif args.mode == 'hot':
+        getImagesByHot(sub,int(args.limit),CACHE_DIR)
+    #Check if there is some image to display
     if not directoryIsEmpty(CACHE_DIR):
         subprocess.run("sxiv -a "+'"'+CACHE_DIR+'/"*.*',shell=True)
 

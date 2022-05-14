@@ -14,18 +14,15 @@ A reddit media scraper
 optional arguments:
 
   -h, --help            show this help message and exit
-
--s SUBREDDIT, --subreddit SUBREDDIT
-                        Subreddit to be scraped
-                        
--m MODE, --mode MODE  Mode that the scraper will use, options: new, top, hot
-
--l LIMIT, --limit LIMIT
-                        How many posts will be downloaded
-
--f, --favorite        Choose option from favorite file
-
-# TODO
-- Download videos to open with mpv
-- 
-- Download posts and print them on screen
+  
+  -s SUBREDDIT, --subreddit SUBREDDIT Subreddit to be scraped
+  
+  -m MODE, --mode MODE  Mode that the scraper will use, options: new, top, hot
+  
+  -l LIMIT, --limit LIMIT How many posts will be downloaded
+  
+  -f, --favorite        Choose option from favorite file
+  
+  -t MEDIATYPE, --type MEDIATYPE Media type to be downloaded, options:image ,video , text
+  
+  -k, --keep            Keep the scraped files permanently

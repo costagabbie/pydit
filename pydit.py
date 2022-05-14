@@ -37,9 +37,13 @@ def getVideos(subreddit, mode, limit, destDir):
                 img = urllib.request.urlopen(jsonResponse['data']['children'][i]['data']['media']['reddit_video']['scrubber_media_url']).read()
                 with open(os.path.join(destDir,filename),"wb") as outfile:
                     outfile.write(img)
-            except Exception as ex:
+            except urllib.error.HTTPError as e:
                 print("Error downloading the video :"+jsonResponse['data']['children'][i]['data']['media']['reddit_video']['scrubber_media_url'])
-                print("Reason:"+ex.message)
+                print(e.__dict__)
+            except urllib.error.URLError as e:
+                print("Error downloading the video :"+jsonResponse['data']['children'][i]['data']['media']['reddit_video']['scrubber_media_url'])
+                print(e.__dict__)
+                
 
 def getImages(subreddit, mode, limit, destDir):
     try:
@@ -57,17 +61,23 @@ def getImages(subreddit, mode, limit, destDir):
                 img = urllib.request.urlopen(jsonResponse['data']['children'][i]['data']['url']).read()
                 with open(os.path.join(destDir,filename),"wb") as outfile:
                     outfile.write(img)
-            except Exception as ex:
+            except urllib.error.HTTPError as e:
                 print("Error downloading the image :"+jsonResponse['data']['children'][i]['data']['url'])
-                print("Reason: "+ex.message)
-
+                print(e.__dict__)
+            except urllib.error.URLError as e:
+                print("Error downloading the image :"+jsonResponse['data']['children'][i]['data']['url'])
+                print(e.__dict__)
 def getPosts(subreddit, mode, limit, destDir):
     try:
         print("https://www.reddit.com/r/"+subreddit+"/"+mode+".json?limit="+str(limit))
         response = urllib.request.urlopen("https://www.reddit.com/r/"+subreddit+"/hot.json?limit="+str(limit)).read()
         jsonResponse = json.loads(response)
-    except Exception as ex:
-        print("Error getting the post list:"+ex.message)
+    except urllib.error.HTTPError as e:
+        print("Error getting the post list:")
+        print(e.__dict__)
+    except urllib.error.URLError as e:
+        print("Error getting the post list:")
+        print(e.__dict__)
         exit()
     with open(os.path.join(destDir,'posts.txt'),'w') as filp:
         for i in range(limit):
@@ -143,7 +153,7 @@ def getSubFromFavorites():
 
 def main():
     # Script title
-    print("Gabbie's reddit media scraper")
+    print("Reddit media scraper")
     # Parse the command-line arguments
     parser = argparse.ArgumentParser(description="A reddit media scraper")
     parser.add_argument('-s', '--subreddit', dest='subreddit', help='Subreddit to be scraped',type=str)

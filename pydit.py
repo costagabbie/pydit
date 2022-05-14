@@ -1,16 +1,106 @@
 #!/bin/env python3
 import os
+from distutils.dir_util import copy_tree
 from pydoc import doc
-import sys
 from xdg import BaseDirectory
 import subprocess
 import argparse
+import urllib.request
+import json
 from pathlib import Path
-from redditUtils.imagedownloader import getImagesByNew, getImagesByHot, getImagesByTop
 
 
 CACHE_DIR = os.path.join(BaseDirectory.xdg_cache_home,'pydit')
 CONFIG_DIR = os.path.join(BaseDirectory.xdg_config_home,'pydit')
+DOC_DIR = os.path.join(os.environ['HOME'],'Documents','pydit')
+PIC_DIR = os.path.join(os.environ['HOME'],'Pictures','pydit')
+VID_DIR = os.path.join(os.environ['HOME'],'Videos','pydit')
+
+allowedextvid = [".mp4"]
+allowedextimg = [".png",".jpg"]
+
+def getVideos(subreddit, mode, limit, destDir):
+    try:
+        print("https://www.reddit.com/r/"+subreddit+"/new.json?limit="+str(limit))
+        response = urllib.request.urlopen("https://www.reddit.com/r/"+subreddit+"/"+mode+".json?limit="+str(limit)).read()
+        jsonResponse = json.loads(response)
+    except Exception as ex:
+        print("Error getting the videos list:"+ex.message)
+        exit()
+    for i in range(limit):
+        if not jsonResponse['data']['children'][i]['data']['is_video']:
+            continue
+        filename = jsonResponse['data']['children'][i]['data']['media']['reddit_video']['scrubber_media_url'].split('/')[-1] 
+        if os.path.splitext(filename)[-1] in allowedextvid:
+            try:
+                print('Downloading '+jsonResponse['data']['children'][i]['data']['media']['reddit_video']['scrubber_media_url'])
+                img = urllib.request.urlopen(jsonResponse['data']['children'][i]['data']['media']['reddit_video']['scrubber_media_url']).read()
+                with open(os.path.join(destDir,filename),"wb") as outfile:
+                    outfile.write(img)
+            except Exception as ex:
+                print("Error downloading the video :"+jsonResponse['data']['children'][i]['data']['media']['reddit_video']['scrubber_media_url'])
+                print("Reason:"+ex.message)
+
+def getImages(subreddit, mode, limit, destDir):
+    try:
+        print("https://www.reddit.com/r/"+subreddit+"/new.json?limit="+str(limit))
+        response = urllib.request.urlopen("https://www.reddit.com/r/"+subreddit+"/"+mode+".json?limit="+str(limit)).read()
+        jsonResponse = json.loads(response)
+    except Exception as ex:
+        print("Error getting the image list:"+ex.message)
+        exit()
+    for i in range(limit):
+        filename = jsonResponse['data']['children'][i]['data']['url'].split('/')[-1] 
+        if os.path.splitext(filename)[-1] in allowedextimg:
+            try:
+                print('Downloading '+jsonResponse['data']['children'][i]['data']['url'])
+                img = urllib.request.urlopen(jsonResponse['data']['children'][i]['data']['url']).read()
+                with open(os.path.join(destDir,filename),"wb") as outfile:
+                    outfile.write(img)
+            except Exception as ex:
+                print("Error downloading the image :"+jsonResponse['data']['children'][i]['data']['url'])
+                print("Reason: "+ex.message)
+
+def getPosts(subreddit, mode, limit, destDir):
+    try:
+        print("https://www.reddit.com/r/"+subreddit+"/"+mode+".json?limit="+str(limit))
+        response = urllib.request.urlopen("https://www.reddit.com/r/"+subreddit+"/hot.json?limit="+str(limit)).read()
+        jsonResponse = json.loads(response)
+    except Exception as ex:
+        print("Error getting the post list:"+ex.message)
+        exit()
+    with open(os.path.join(destDir,'posts.txt'),'w') as filp:
+        for i in range(limit):
+            post = jsonResponse['data']['children'][i]['data']['selftext']
+            title = jsonResponse['data']['children'][i]['data']['title']
+            author = jsonResponse['data']['children'][i]['data']['author']
+            filp.write("_________________________________________________\n")
+            filp.write(title+" by "+author+"\n")
+            filp.write(post+"\n")
+            filp.write("_________________________________________________\n")
+
+def saveCache(mediaType, subreddit):
+    if mediaType == "text":
+        #Check if the destination folder exist
+        if not directoryExists(os.path.join(DOC_DIR,subreddit)):
+            os.mkdir(os.path.join(DOC_DIR,subreddit))
+        #Copy file from the cache to the Documents/subreddit dir
+        copy_tree(CACHE_DIR,os.path.join(DOC_DIR,subreddit))
+        print("pydit cache permanently saved at: "+os.path.join(DOC_DIR,subreddit))    
+    elif mediaType == "image":
+        #Check if the destination folder exist
+        if not directoryExists(os.path.join(PIC_DIR,subreddit)):
+            os.mkdir(os.path.join(PIC_DIR,subreddit))
+        #Copy file from the cache to the Pictures/subreddit dir
+        copy_tree(CACHE_DIR,os.path.join(PIC_DIR,subreddit))
+        print("pydit cache permanently saved at: "+os.path.join(PIC_DIR,subreddit))
+    elif mediaType == "video":
+        #Check if the destination folder exist
+        if not directoryExists(os.path.join(VID_DIR,subreddit)):
+            os.mkdir(os.path.join(VID_DIR,subreddit))
+        #Copy file from the cache to the Videos/subreddit dir
+        copy_tree(CACHE_DIR,os.path.join(VID_DIR,subreddit))
+        print("pydit cache permanently saved at: "+os.path.join(VID_DIR,subreddit))
 
 def directoryExists(dirname):
     d = Path(dirname)
@@ -28,6 +118,9 @@ def setup():
     print("First time running? ok, creating cache and config directories.")
     os.mkdir(CACHE_DIR)
     os.mkdir(CONFIG_DIR)
+    os.mkdir(PIC_DIR)
+    os.mkdir(DOC_DIR)
+    os.mkdir(VID_DIR)
     with open(os.path.join(CONFIG_DIR,'favorites.txt'),'w') as filp:
         filp.write('linuxmemes\n')
     print("Add your favorite subreddits on "+os.path.join(CONFIG_DIR,'favorites.txt'))
@@ -47,6 +140,7 @@ def getSubFromFavorites():
     if subreddit == 0:
         exit()
     return subreddits[subreddit-1]
+
 def main():
     # Script title
     print("Gabbie's reddit media scraper")
@@ -56,6 +150,8 @@ def main():
     parser.add_argument('-m', '--mode', dest='mode', help='Mode that the scraper will use, options: new, top, hot', required = True, type=str)
     parser.add_argument('-l', '--limit', dest='limit', help='How many posts will be downloaded',default=100, type=int)
     parser.add_argument('-f', '--favorite', action= 'store_true', dest='favorite', help='Choose option from favorite file',default=False)
+    parser.add_argument('-t','--type',dest='mediatype',help='Media type to be downloaded, options:image ,video , text', type=str, default="image")
+    parser.add_argument('-k', '--keep', action= 'store_true', dest='keepfiles', help='Keep the scraped files permanently',default=False)
     args= parser.parse_args()
     # Check if the required directories exist on XDG config and cache user dirs
     if (not directoryExists(CACHE_DIR)) or (not directoryExists(CONFIG_DIR)):
@@ -71,16 +167,33 @@ def main():
     if sub == '' :
         print("No subreddit specified, quitting now.")
         exit()
-    # Check the mode that we want
-    if args.mode == 'new':
-        getImagesByNew(sub,int(args.limit),CACHE_DIR)
-    elif args.mode == 'top':
-        getImagesByTop(sub,int(args.limit),CACHE_DIR)
-    elif args.mode == 'hot':
-        getImagesByHot(sub,int(args.limit),CACHE_DIR)
-    #Check if there is some image to display
-    if not directoryIsEmpty(CACHE_DIR):
-        subprocess.run("sxiv -a "+'"'+CACHE_DIR+'/"*.*',shell=True)
+    # Check the media type that we want
+    if args.mediatype == 'image':
+        # Check the mode that we want
+        if args.mode.lower() in ["new","top","hot"]:
+            getImages(sub,args.mode.lower(),int(args.limit), CACHE_DIR)
+        #Check if there is some image to display
+        if not directoryIsEmpty(CACHE_DIR):
+            subprocess.run("sxiv -a "+'"'+CACHE_DIR+'/"*.*',shell=True)
+    elif args.mediatype == 'video':
+        if args.mode.lower() in ["new","top","hot"]:
+            getVideos(sub,args.mode.lower(),int(args.limit), CACHE_DIR)
+        #Check if there is some image to display
+        if not directoryIsEmpty(CACHE_DIR):
+            for file in os.listdir(CACHE_DIR):
+                subprocess.run("mpv "+'"'+CACHE_DIR+'/'+file+'"',shell=True)
+                x = input("What to do next? [N]ext [Q]uit?: ")
+                if x == 'q':
+                    break
+    elif args.mediatype == 'text':
+        if args.mode.lower() in ["new","top","hot"]:
+            getPosts(sub,args.mode.lower(),int(args.limit), CACHE_DIR)
+        if not directoryIsEmpty(CACHE_DIR):
+            subprocess.run("less "+'"'+CACHE_DIR+'/posts.txt"',shell=True)
+    #Check if we want to keep
+    if args.keepfiles :
+        saveCache(args.mediatype,sub)
 
+# Setting the "entrypoint" of the script      
 if __name__ == '__main__':
     main()

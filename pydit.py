@@ -1,8 +1,7 @@
 #!/bin/env python3
 import os
-from distutils.dir_util import copy_tree
+from shutil import copy
 from pydoc import doc
-from xdg import BaseDirectory
 import subprocess
 import argparse
 import urllib.request
@@ -10,14 +9,19 @@ import json
 from pathlib import Path
 
 
-CACHE_DIR = os.path.join(BaseDirectory.xdg_cache_home,'pydit')
-CONFIG_DIR = os.path.join(BaseDirectory.xdg_config_home,'pydit')
+CACHE_DIR = os.path.join(os.environ['HOME'],'.cache','pydit')
+CONFIG_DIR = os.path.join(os.environ['HOME'],'.config','pydit')
 DOC_DIR = os.path.join(os.environ['HOME'],'Documents','pydit')
 PIC_DIR = os.path.join(os.environ['HOME'],'Pictures','pydit')
 VID_DIR = os.path.join(os.environ['HOME'],'Videos','pydit')
 
 allowedextvid = [".mp4"]
 allowedextimg = [".png",".jpg"]
+
+def copyFiles(src,dest):
+    for root, dirs, files in os.walk(src,topdown=True):
+        for name in files:
+            copy(os.path.join(src,name),os.path.join(dest,name))
 
 def getVideos(subreddit, mode, limit, destDir):
     try:
@@ -47,7 +51,7 @@ def getVideos(subreddit, mode, limit, destDir):
 
 def getImages(subreddit, mode, limit, destDir):
     try:
-        print("https://www.reddit.com/r/"+subreddit+"/new.json?limit="+str(limit))
+        print("https://www.reddit.com/r/"+subreddit+"/"+mode+".json?limit="+str(limit))
         response = urllib.request.urlopen("https://www.reddit.com/r/"+subreddit+"/"+mode+".json?limit="+str(limit)).read()
         jsonResponse = json.loads(response)
     except Exception as ex:
@@ -95,21 +99,21 @@ def saveCache(mediaType, subreddit):
         if not directoryExists(os.path.join(DOC_DIR,subreddit)):
             os.mkdir(os.path.join(DOC_DIR,subreddit))
         #Copy file from the cache to the Documents/subreddit dir
-        copy_tree(CACHE_DIR,os.path.join(DOC_DIR,subreddit))
+        copyFiles(CACHE_DIR,os.path.join(DOC_DIR,subreddit))
         print("pydit cache permanently saved at: "+os.path.join(DOC_DIR,subreddit))    
     elif mediaType == "image":
         #Check if the destination folder exist
         if not directoryExists(os.path.join(PIC_DIR,subreddit)):
             os.mkdir(os.path.join(PIC_DIR,subreddit))
         #Copy file from the cache to the Pictures/subreddit dir
-        copy_tree(CACHE_DIR,os.path.join(PIC_DIR,subreddit))
+        copyFiles(CACHE_DIR,os.path.join(PIC_DIR,subreddit))
         print("pydit cache permanently saved at: "+os.path.join(PIC_DIR,subreddit))
     elif mediaType == "video":
         #Check if the destination folder exist
         if not directoryExists(os.path.join(VID_DIR,subreddit)):
             os.mkdir(os.path.join(VID_DIR,subreddit))
         #Copy file from the cache to the Videos/subreddit dir
-        copy_tree(CACHE_DIR,os.path.join(VID_DIR,subreddit))
+        copyFiles(CACHE_DIR,os.path.join(VID_DIR,subreddit))
         print("pydit cache permanently saved at: "+os.path.join(VID_DIR,subreddit))
 
 def directoryExists(dirname):
@@ -162,6 +166,7 @@ def main():
     parser.add_argument('-f', '--favorite', action= 'store_true', dest='favorite', help='Choose option from favorite file',default=False)
     parser.add_argument('-t','--type',dest='mediatype',help='Media type to be downloaded, options:image ,video , text', type=str, default="image")
     parser.add_argument('-k', '--keep', action= 'store_true', dest='keepfiles', help='Keep the scraped files permanently',default=False)
+    parser.add_argument('-n','--noexec', action= 'store_true', dest='noexec', help='Download only, will not execute any players/viewers',default=False)
     args= parser.parse_args()
     # Check if the required directories exist on XDG config and cache user dirs
     if (not directoryExists(CACHE_DIR)) or (not directoryExists(CONFIG_DIR)):
@@ -183,13 +188,13 @@ def main():
         if args.mode.lower() in ["new","top","hot"]:
             getImages(sub,args.mode.lower(),int(args.limit), CACHE_DIR)
         #Check if there is some image to display
-        if not directoryIsEmpty(CACHE_DIR):
+        if (not directoryIsEmpty(CACHE_DIR)) and (not args.noexec):
             subprocess.run("sxiv -a "+'"'+CACHE_DIR+'/"*.*',shell=True)
     elif args.mediatype == 'video':
         if args.mode.lower() in ["new","top","hot"]:
             getVideos(sub,args.mode.lower(),int(args.limit), CACHE_DIR)
         #Check if there is some image to display
-        if not directoryIsEmpty(CACHE_DIR):
+        if (not directoryIsEmpty(CACHE_DIR)) and (not args.noexec):
             for file in os.listdir(CACHE_DIR):
                 subprocess.run("mpv "+'"'+CACHE_DIR+'/'+file+'"',shell=True)
                 x = input("What to do next? [N]ext [Q]uit?: ")
@@ -198,7 +203,7 @@ def main():
     elif args.mediatype == 'text':
         if args.mode.lower() in ["new","top","hot"]:
             getPosts(sub,args.mode.lower(),int(args.limit), CACHE_DIR)
-        if not directoryIsEmpty(CACHE_DIR):
+        if (not directoryIsEmpty(CACHE_DIR)) and (not args.noexec):
             subprocess.run("less "+'"'+CACHE_DIR+'/posts.txt"',shell=True)
     #Check if we want to keep
     if args.keepfiles :

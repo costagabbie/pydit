@@ -1,7 +1,6 @@
 # pydit
 Reddit media downloader written in python
 # Dependencies
-`python-xdg`: https://pypi.org/project/xdg/
 
 `sxiv`: check your distro repository, quite common package should exist there.
 

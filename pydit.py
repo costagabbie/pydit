@@ -3,6 +3,7 @@ import os
 from shutil import copy
 from pydoc import doc
 import subprocess
+import configparser
 import argparse
 import urllib.request
 import json
@@ -12,14 +13,12 @@ from wsgiref import headers
 USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64; rv:101.0) Gecko/20100101 Firefox/101.0'
 CACHE_DIR = os.path.join(os.environ['HOME'],'.cache','pydit')
 CONFIG_DIR = os.path.join(os.environ['HOME'],'.config','pydit')
-DOC_DIR = os.path.join(os.environ['HOME'],'Documents','pydit')
-PIC_DIR = os.path.join(os.environ['HOME'],'Pictures','pydit')
-VID_DIR = os.path.join(os.environ['HOME'],'Videos','pydit')
+DOC_DIR = os.path.join(os.getenv('HOME'),'pydit')
+PIC_DIR = os.path.join(os.getenv('HOME'),'pydit')
+VID_DIR = os.path.join(os.getenv('HOME'),'pydit')
 
 allowedextvid = [".mp4"]
 allowedextimg = [".png",".jpg"]
-
-
 
 def copyFiles(src,dest):
     for root, dirs, files in os.walk(src,topdown=True):
@@ -36,7 +35,7 @@ def getVideos(subreddit, mode, limit, destDir):
                 'User-Agent': USER_AGENT
             }
         )
-        response = urllib.request.urlopen(req).read() #urllib.request.urlopen("https://www.reddit.com/r/"+subreddit+"/"+mode+".json?limit="+str(limit)).read()
+        response = urllib.request.urlopen(req).read() 
         jsonResponse = json.loads(response)
     except urllib.error.HTTPError as e:
         print("Error downloading the image :"+jsonResponse['data']['children'][i]['data']['url'])
@@ -58,7 +57,7 @@ def getVideos(subreddit, mode, limit, destDir):
                     'User-Agent': USER_AGENT
                     }
                 )
-                img = urllib.request.urlopen(req).read()#img = urllib.request.urlopen(jsonResponse['data']['children'][i]['data']['media']['reddit_video']['scrubber_media_url'], headers={'User-Agent': USER_AGENT}).read()
+                img = urllib.request.urlopen(req).read()
                 with open(os.path.join(destDir,filename),"wb") as outfile:
                     outfile.write(img)
             except urllib.error.HTTPError as e:
@@ -105,6 +104,7 @@ def getImages(subreddit, mode, limit, destDir):
             except urllib.error.URLError as e:
                 print("Error downloading the image :"+jsonResponse['data']['children'][i]['data']['url'])
                 print(e.__dict__)
+
 def getPosts(subreddit, mode, limit, destDir):
     try:
         print("https://www.reddit.com/r/"+subreddit+"/"+mode+".json?limit="+str(limit))
@@ -171,14 +171,55 @@ def cleanDirectory(path):
 
 def setup():
     print("First time running? ok, creating cache and config directories.")
-    os.mkdir(CACHE_DIR)
-    os.mkdir(CONFIG_DIR)
-    os.mkdir(PIC_DIR)
-    os.mkdir(DOC_DIR)
-    os.mkdir(VID_DIR)
-    with open(os.path.join(CONFIG_DIR,'favorites.txt'),'w') as filp:
-        filp.write('linuxmemes\n')
-    print("Add your favorite subreddits on "+os.path.join(CONFIG_DIR,'favorites.txt'))
+    try:
+        global PIC_DIR
+        global DOC_DIR
+        global VID_DIR
+        print("Checking for the existence of the cache directory")
+        if not directoryExists(CACHE_DIR):
+            print("Cache directory doesn't exist, creating now")
+            os.mkdir(CACHE_DIR)
+        print("Checking for the existence of the config directory")
+        if not directoryExists(CONFIG_DIR):
+            print("Config directory doesn't exist, creating now")
+            os.mkdir(CONFIG_DIR)
+        PIC_DIR = input(f"Enter your Pictures directory(default: {PIC_DIR}):")
+        if not directoryExists(PIC_DIR):
+            os.mkdir(os.path.join(PIC_DIR),'pydit')
+        VID_DIR = input(f"Enter your Videos directory(default: {VID_DIR}):")
+        if not directoryExists(VID_DIR):
+            os.mkdir(os.path.join(VID_DIR),'pydit') 
+        DOC_DIR = input(f"Enter your Documents directory(default: {DOC_DIR}):")
+        if not directoryExists(DOC_DIR):
+            os.mkdir(os.path.join(DOC_DIR),'pydit')
+        with open(os.path.join(CONFIG_DIR,'config.txt'),'w') as filp:
+            config = configparser.ConfigParser()
+            config['PATHS'] = {
+                'DOC_DIR': os.path.join(DOC_DIR,'pydit'),
+                'PIC_DIR': os.path.join(PIC_DIR,'pydit'),
+                'VID_DIR': os.path.join(VID_DIR,'pydit')
+
+            }
+            config.write(filp)   
+        with open(os.path.join(CONFIG_DIR,'favorites.txt'),'w') as filp:
+            filp.write('linuxmemes\n')
+        print("Add your favorite subreddits on "+os.path.join(CONFIG_DIR,'favorites.txt'))
+    except:
+        print("Setup failed!")
+
+def loadConfig():
+    try:
+        config = configparser.ConfigParser()
+        config.read(os.path.join(CONFIG_DIR,'config.txt'))
+        global PIC_DIR
+        PIC_DIR = config['PATHS']['PIC_DIR']
+        global DOC_DIR
+        DOC_DIR = config['PATHS']['DOC_DIR']
+        global VID_DIR 
+        VID_DIR = config['PATHS']['DOC_DIR']
+        return True
+    except:
+        return False
 
 def getSubFromFavorites():
     subreddits = []
@@ -198,7 +239,7 @@ def getSubFromFavorites():
 
 def main():
     # Script title
-    print("Reddit media scraper")
+    print("Pydit - a reddit media scraper")
     # Parse the command-line arguments
     parser = argparse.ArgumentParser(description="A reddit media scraper")
     parser.add_argument('-s', '--subreddit', dest='subreddit', help='Subreddit to be scraped',type=str)
@@ -208,10 +249,14 @@ def main():
     parser.add_argument('-t','--type',dest='mediatype',help='Media type to be downloaded, options:image ,video , text', type=str, default="image")
     parser.add_argument('-k', '--keep', action= 'store_true', dest='keepfiles', help='Keep the scraped files permanently',default=False)
     parser.add_argument('-n','--noexec', action= 'store_true', dest='noexec', help='Download only, will not execute any players/viewers',default=False)
+    parser.add_argument('-r','--re-setup',action='store_true',dest='resetup',help='Force the setup process to happen again.',default=False)
     args= parser.parse_args()
     # Check if the required directories exist on XDG config and cache user dirs
-    if (not directoryExists(CACHE_DIR)) or (not directoryExists(CONFIG_DIR)):
+    if (not directoryExists(CACHE_DIR)) or (not directoryExists(CONFIG_DIR)) or args.resetup:
         setup()
+    if not loadConfig():
+        print("Could not load the config file, try to run with the -r to redo the configuration.")
+        exit()
     # Check if the cache directory is empty, so we don't display repeated content from other runs
     if not directoryIsEmpty(CACHE_DIR):
         cleanDirectory(CACHE_DIR)

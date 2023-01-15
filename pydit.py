@@ -8,7 +8,6 @@ import argparse
 import urllib.request
 import json
 from pathlib import Path
-from wsgiref import headers
 
 USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64; rv:101.0) Gecko/20100101 Firefox/101.0'
 CACHE_DIR = os.path.join(os.environ['HOME'],'.cache','pydit')
@@ -95,7 +94,7 @@ def getVideos(subreddit:str, mode:str, limit:int, destDir:str):
             try:
                 tmp_video = os.path.join(destDir,f'{filename}-video{file_extension}')
                 tmp_audio = os.path.join(destDir,f'{filename}-audio{file_extension}')
-                merged_file = os.path.join(destDir,f'{filename}{file_extension}')
+                merged_file = os.path.join(destDir,f"{post['data']['media']['reddit_video']['fallback_url'].split('/')[3]}{file_extension}")
                 encoding = subprocess.check_output(f"ffmpeg -i {tmp_video} -i {tmp_audio} -c:v copy -c:a copy {merged_file}",shell=True)
             except subprocess.CalledProcessError as e:
                 print(e.__dict__)

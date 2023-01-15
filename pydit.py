@@ -20,161 +20,124 @@ VID_DIR = os.path.join(os.getenv('HOME'),'pydit')
 allowedextvid = [".mp4"]
 allowedextimg = [".png",".jpg"]
 
-def copyFiles(src,dest):
+def copyFiles(src:str,dest:str):
     for root, dirs, files in os.walk(src,topdown=True):
         for name in files:
             copy(os.path.join(src,name),os.path.join(dest,name))
 
-def getVideos(subreddit, mode, limit, destDir):
-    """"
-        TODO: Properly implement the video downloading
-        json path for the video = ['data']['children'][index]['data']['secure_media']['fallback_url']
-        json path for the audio = ['data']['children'][index]['data']['secure_media']['fallback_url'] but the filename always DASH_audio.mp4
-        the filename(for the saved) should be the text howmu3gnh2ca1 on https://v.redd.it/howmu3gnh2ca1/DASH_720.mp4?source=fallback
-        so it can be json path for the video = ['data']['children'][index]['data']['url']
-        >>> s='https://v.redd.it/howmu3gnh2ca1/DASH_720.mp4?source=fallback'
-        >>> s.split('/')
-        ['https:', '', 'v.redd.it', 'howmu3gnh2ca1', 'DASH_720.mp4?source=fallback']
-            0       1      2              3                 4
-        ffmpeg command line = ffmpeg -i video.mp4 -i audio.wav -c:v copy -c:a aac output.mp4
-    """
+def request_posts(subreddit:str,mode:str,limit:int):
     try:
-        #we try to get the JSON containing the posts from that subreddit 
-        print("https://www.reddit.com/r/"+subreddit+"/"+mode+".json?limit="+str(limit))
+        url = f'https://www.reddit.com/r/{subreddit}/{mode}.json?limit={limit}'
         req = urllib.request.Request(
-            "https://www.reddit.com/r/"+subreddit+"/"+mode+".json?limit="+str(limit), 
+            url, 
             data=None, 
             headers={
                 'User-Agent': USER_AGENT
             }
         )
-        response = urllib.request.urlopen(req).read() 
-        jsonResponse = json.loads(response)
+        return urllib.request.urlopen(req).read()
     except urllib.error.HTTPError as e:
-        print("Error downloading the image :"+jsonResponse['data']['children'][i]['data']['url'])
+        print(f'Error downloading the post list: {url}')
         print(e.__dict__)
+        return None
     except urllib.error.URLError as e:
-        print("Error downloading the image :"+jsonResponse['data']['children'][i]['data']['url'])
+        print(f'Error downloading the post list: {url}')
         print(e.__dict__)
+        return None
+
+def download_file(url:str):
+    try:
+        req = urllib.request.Request(
+                url, 
+                data=None, 
+                headers={
+                    'User-Agent': USER_AGENT
+                    }
+                )
+        return urllib.request.urlopen(req).read()
+    except urllib.error.HTTPError as e:
+        print(f'Error downloading file: {url}')
+        print(e.__dict__)
+        return None
+    except urllib.error.URLError as e:
+        print(f'Error downloading file: {url}')
+        print(e.__dict__)
+        return None
+    
+def getVideos(subreddit:str, mode:str, limit:int, destDir:str):
+    # We try to get the JSON containing the posts from that subreddit 
+    print(f'https://www.reddit.com/r/{subreddit}/{mode}.json?limit={limit}') 
+    response = request_posts(subreddit,mode,limit)
+    if response:
+        jsonResponse = json.loads(response)
+    else:
+        exit()
     #then we iterate through until the limit of posts
-    for i in range(limit):
-        if not jsonResponse['data']['children'][i]['data']['is_video']: #all we care on this function is posts that are video
+    for post in jsonResponse['data']['children']:
+        if not post['data']['is_video']: #all we care on this function is posts that are video
             continue
-        filename = jsonResponse['data']['children'][i]['data']['media']['reddit_video']['fallback_url'].split('/')[4].split('?')[0] #get the full file name
+        filename = post['data']['media']['reddit_video']['fallback_url'].split('/')[4].split('?')[0] #get the full file name
         file_extension = os.path.splitext(filename)[1] #get the extension
         filename = filename.split('.')[0] #remove the extension from the full file name
         if file_extension in allowedextvid:
+            #Downloading and saving the video
+            print('Downloading video file '+post['data']['media']['reddit_video']['fallback_url'])
+            video = download_file(post['data']['media']['reddit_video']['fallback_url'])
+            with open(os.path.join(destDir,f'{filename}-video{file_extension}'),"wb") as outfile:
+                outfile.write(video)
+            #Downloading and saving the audio
+            print('Downloading audio file '+post['data']['media']['reddit_video']['fallback_url'])
+            audio = download_file(f"{os.path.split(post['data']['media']['reddit_video']['fallback_url'])[0]}/DASH_audio.mp4")
+            with open(os.path.join(destDir,f'{filename}-audio{file_extension}'),'wb') as outfile:
+                outfile.write(audio)
+            #Merging the audio and video into a destination file
+            print('Merging audio and video file')
             try:
-                print('Downloading video file '+jsonResponse['data']['children'][i]['data']['media']['reddit_video']['fallback_url'])
-                #Prepare tthe request to download the video file
-                video_req = urllib.request.Request(
-                jsonResponse['data']['children'][i]['data']['media']['reddit_video']['fallback_url'], 
-                data=None, 
-                headers={
-                    'User-Agent': USER_AGENT
-                    }
-                )
-                #Download it
-                video = urllib.request.urlopen(video_req).read()
-                with open(os.path.join(destDir,f'{filename}-video.{file_extension}'),"wb") as outfile:
-                    outfile.write(video)
-                
-                print('Downloading audio file '+jsonResponse['data']['children'][i]['data']['media']['reddit_video']['fallback_url'])
-                #Preparing the request to download the audio file
-                audio_req = urllib.request.Request(
-                f"{os.path.split(jsonResponse['data']['children'][i]['data']['media']['reddit_video']['fallback_url'])[0]}/DASH_audio.mp4", 
-                data=None, 
-                headers={
-                    'User-Agent': USER_AGENT
-                    }
-                )
-                #Download it
-                audio = urllib.request.urlopen(audio_req).read()
-                with open(os.path.join(destDir,f'{filename}-audio.{file_extension}'),'wb') as outfile:
-                    outfile.write(audio)
-                ##TODO: Merge the audio files together and save as filename+file_extension
-                print('Merging audio and video file')
-                try:
-                    encoding = subprocess.check_output([
-                        'ffmpeg','-i',os.path.join(destDir,f'{filename}-video{file_extension}'),
-                        '-i',os.path.join(destDir,f'{filename}-audio{file_extension}'),
-                        '-c:v','copy','-c:a','copy',
-                        os.path.join(destDir,filename,file_extension)])
-                except subprocess.CalledProcessError as e:
-                    print(e.__dict__)
-                print('Removing the temporary audio and video files')
-                os.remove(os.path.join(destDir,filename,'-audio',file_extension))
-                os.remove(os.path.join(destDir,filename,'-video',file_extension))
-            except urllib.error.URLError as e:
-                print("Error downloading the video :"+jsonResponse['data']['children'][i]['data']['media']['reddit_video']['scrubber_media_url'])
+                tmp_video = os.path.join(destDir,f'{filename}-video{file_extension}')
+                tmp_audio = os.path.join(destDir,f'{filename}-audio{file_extension}')
+                merged_file = os.path.join(destDir,f'{filename}{file_extension}')
+                '''encoding = subprocess.check_output([
+                    'ffmpeg','-i',os.path.join(destDir,f'{filename}-video{file_extension}'),
+                    '-i',os.path.join(destDir,f'{filename}-audio{file_extension}'),
+                    '-c:v','copy','-c:a','copy',
+                    os.path.join(destDir,filename,file_extension)])
+                    '''
+                encoding = subprocess.check_output(f"ffmpeg -i {tmp_video} -i {tmp_audio} -c:v copy -c:a copy {merged_file}",shell=True)
+            except subprocess.CalledProcessError as e:
                 print(e.__dict__)
-                
+            #Removing the temporary audio and video files
+            print('Removing the temporary audio and video files')
+            os.remove(os.path.join(destDir,f'{filename}-audio{file_extension}'))
+            os.remove(os.path.join(destDir,f'{filename}-video{file_extension}'))
 
 def getImages(subreddit, mode, limit, destDir):
-    try:
-        print("https://www.reddit.com/r/"+subreddit+"/"+mode+".json?limit="+str(limit))
-        req = urllib.request.Request(
-            "https://www.reddit.com/r/"+subreddit+"/"+mode+".json?limit="+str(limit), 
-            data=None, 
-            headers={
-                'User-Agent': USER_AGENT
-            }
-        )
-        response = urllib.request.urlopen(req).read()
+    #Downloading the post list json
+    response = request_posts(subreddit,mode,limit)
+    if response:
         jsonResponse = json.loads(response)
-    except urllib.error.HTTPError as ex:
-        print("Error getting the image list:")
+    else:
         exit()
-    for i in range(limit):
-        filename = jsonResponse['data']['children'][i]['data']['url'].split('/')[-1] 
+    for post in jsonResponse['data']['children']:
+        filename = post['data']['url'].split('/')[-1] 
         if os.path.splitext(filename)[-1] in allowedextimg:
-            try:
-                print('Downloading '+jsonResponse['data']['children'][i]['data']['url'])
-                req = urllib.request.Request(
-                jsonResponse['data']['children'][i]['data']['url'], 
-                data=None, 
-                headers={
-                    'User-Agent': USER_AGENT
-                    }
-                )
-                img = urllib.request.urlopen(req).read()
-                with open(os.path.join(destDir,filename),"wb") as outfile:
-                    outfile.write(img)
-            except urllib.error.HTTPError as e:
-                print("Error downloading the image :"+jsonResponse['data']['children'][i]['data']['url'])
-                print(e.__dict__)
-            except urllib.error.URLError as e:
-                print("Error downloading the image :"+jsonResponse['data']['children'][i]['data']['url'])
-                print(e.__dict__)
+            print('Downloading '+post['data']['url'])
+            img = download_file(post['data']['url'])
+            with open(os.path.join(destDir,filename),"wb") as outfile:
+                outfile.write(img)
 
 def getPosts(subreddit, mode, limit, destDir):
-    try:
-        print("https://www.reddit.com/r/"+subreddit+"/"+mode+".json?limit="+str(limit))
-        req = urllib.request.Request(
-            "https://www.reddit.com/r/"+subreddit+"/"+mode+".json?limit="+str(limit), 
-            data=None, 
-            headers={
-                'User-Agent': USER_AGENT
-            }
-        )
-        response = urllib.request.urlopen(req).read()
+    print("https://www.reddit.com/r/"+subreddit+"/"+mode+".json?limit="+str(limit))
+    response = request_posts(subreddit,mode,limit)
+    if response:
         jsonResponse = json.loads(response)
-    except urllib.error.HTTPError as e:
-        print("Error getting the post list:")
-        print(e.__dict__)
-    except urllib.error.URLError as e:
-        print("Error getting the post list:")
-        print(e.__dict__)
+    else:
         exit()
     with open(os.path.join(destDir,'posts.txt'),'w') as filp:
-        for i in range(limit):
-            post = jsonResponse['data']['children'][i]['data']['selftext']
-            title = jsonResponse['data']['children'][i]['data']['title']
-            author = jsonResponse['data']['children'][i]['data']['author']
-            filp.write("_________________________________________________\n")
-            filp.write(title+" by "+author+"\n")
-            filp.write(post+"\n")
-            filp.write("_________________________________________________\n")
+        for post in jsonResponse['data']['children']:
+            filp.write('_________________________________________________\n')
+            filp.write(f"{post['data']['title']} by {post['data']['author']}\n")
+            filp.write(f"{post['data']['selftext']}\n")
+            filp.write('_________________________________________________\n')
 
 def saveCache(mediaType, subreddit):
     if mediaType == "text":

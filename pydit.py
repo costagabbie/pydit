@@ -60,11 +60,12 @@ def getVideos(subreddit, mode, limit, destDir):
     for i in range(limit):
         if not jsonResponse['data']['children'][i]['data']['is_video']: #all we care on this function is posts that are video
             continue
-        filename = jsonResponse['data']['children'][i]['data']['media']['reddit_video']['fallback_url'].split('/')[4]
-        file_extension = jsonResponse['data']['children'][i]['data']['media']['reddit_video']['fallback_url'].split('/')[-1]
-        if os.path.splitext(filename)[-1] in allowedextvid:
+        filename = jsonResponse['data']['children'][i]['data']['media']['reddit_video']['fallback_url'].split('/')[4].split('?')[0] #get the full file name
+        file_extension = os.path.splitext(filename)[1] #get the extension
+        filename = filename.split('.')[0] #remove the extension from the full file name
+        if file_extension in allowedextvid:
             try:
-                print('Downloading video file'+jsonResponse['data']['children'][i]['data']['media']['reddit_video']['fallback_url'])
+                print('Downloading video file '+jsonResponse['data']['children'][i]['data']['media']['reddit_video']['fallback_url'])
                 #Prepare tthe request to download the video file
                 video_req = urllib.request.Request(
                 jsonResponse['data']['children'][i]['data']['media']['reddit_video']['fallback_url'], 
@@ -75,13 +76,13 @@ def getVideos(subreddit, mode, limit, destDir):
                 )
                 #Download it
                 video = urllib.request.urlopen(video_req).read()
-                with open(os.path.join(destDir,filename,'-video',file_extension),"wb") as outfile:
+                with open(os.path.join(destDir,f'{filename}-video.{file_extension}'),"wb") as outfile:
                     outfile.write(video)
                 
-                print('Downloading audio file'+jsonResponse['data']['children'][i]['data']['media']['reddit_video']['fallback_url'])
+                print('Downloading audio file '+jsonResponse['data']['children'][i]['data']['media']['reddit_video']['fallback_url'])
                 #Preparing the request to download the audio file
                 audio_req = urllib.request.Request(
-                f"{str(jsonResponse['data']['children'][i]['data']['media']['reddit_video']['fallback_url']).split('/')[0:4]}/DASH_audio.mp4", 
+                f"{os.path.split(jsonResponse['data']['children'][i]['data']['media']['reddit_video']['fallback_url'])[0]}/DASH_audio.mp4", 
                 data=None, 
                 headers={
                     'User-Agent': USER_AGENT
@@ -89,14 +90,14 @@ def getVideos(subreddit, mode, limit, destDir):
                 )
                 #Download it
                 audio = urllib.request.urlopen(audio_req).read()
-                with open(os.path.join(destDir,filename,'-audio',file_extension),'wb') as outfile:
+                with open(os.path.join(destDir,f'{filename}-audio.{file_extension}'),'wb') as outfile:
                     outfile.write(audio)
                 ##TODO: Merge the audio files together and save as filename+file_extension
                 print('Merging audio and video file')
                 try:
                     encoding = subprocess.check_output([
-                        'ffmpeg','-i',os.path.join(destDir,filename,'-video',file_extension),
-                        '-i',os.path.join(destDir,filename,'-audio',file_extension),
+                        'ffmpeg','-i',os.path.join(destDir,f'{filename}-video{file_extension}'),
+                        '-i',os.path.join(destDir,f'{filename}-audio{file_extension}'),
                         '-c:v','copy','-c:a','copy',
                         os.path.join(destDir,filename,file_extension)])
                 except subprocess.CalledProcessError as e:

@@ -96,12 +96,6 @@ def getVideos(subreddit:str, mode:str, limit:int, destDir:str):
                 tmp_video = os.path.join(destDir,f'{filename}-video{file_extension}')
                 tmp_audio = os.path.join(destDir,f'{filename}-audio{file_extension}')
                 merged_file = os.path.join(destDir,f'{filename}{file_extension}')
-                '''encoding = subprocess.check_output([
-                    'ffmpeg','-i',os.path.join(destDir,f'{filename}-video{file_extension}'),
-                    '-i',os.path.join(destDir,f'{filename}-audio{file_extension}'),
-                    '-c:v','copy','-c:a','copy',
-                    os.path.join(destDir,filename,file_extension)])
-                    '''
                 encoding = subprocess.check_output(f"ffmpeg -i {tmp_video} -i {tmp_audio} -c:v copy -c:a copy {merged_file}",shell=True)
             except subprocess.CalledProcessError as e:
                 print(e.__dict__)

@@ -1,11 +1,18 @@
 # pydit
+## About the project
 Reddit media downloader written in python
-# Dependencies
+
+I made this project to make it easy to get to the interesting part of reddit without the unnecessary part that is the interface.
+
+Also used to archive stuff from subreddits that i like, it also bypass the restriction for signing in to reddit to see NSFW stuff.
+
+The project is currently feature complete, it download text posts, images and videos, but from now on i will do only bugfixes, if you managed to find any bug please report on the issues.
+## Dependencies
 
 `sxiv`: check your distro repository, quite common package should exist there.
 
 `mpv`: check your distro repository, also quite common package should exist there too.
-# Usage
+## Usage
 usage: pydit.py [-h] [-s SUBREDDIT] -m MODE [-l LIMIT] [-f]
 
 A reddit media scraper

@@ -224,7 +224,7 @@ def loadConfig():
         global DOC_DIR
         DOC_DIR = config['PATHS']['DOC_DIR']
         global VID_DIR 
-        VID_DIR = config['PATHS']['DOC_DIR']
+        VID_DIR = config['PATHS']['VID_DIR']
         return True
     except:
         return False

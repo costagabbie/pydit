@@ -78,30 +78,37 @@ def getVideos(subreddit:str, mode:str, limit:int, destDir:str):
         filename = post['data']['media']['reddit_video']['fallback_url'].split('/')[4].split('?')[0] #get the full file name
         file_extension = os.path.splitext(filename)[1] #get the extension
         filename = filename.split('.')[0] #remove the extension from the full file name
+        tmp_video = os.path.join(destDir,f'{filename}-video{file_extension}')
+        tmp_audio = os.path.join(destDir,f'{filename}-audio{file_extension}')
+        merged_file = os.path.join(destDir,f"{post['data']['media']['reddit_video']['fallback_url'].split('/')[3]}{file_extension}")
         if file_extension in allowedextvid:
             #Downloading and saving the video
             print('Downloading video file '+post['data']['media']['reddit_video']['fallback_url'])
             video = download_file(post['data']['media']['reddit_video']['fallback_url'])
-            with open(os.path.join(destDir,f'{filename}-video{file_extension}'),"wb") as outfile:
-                outfile.write(video)
+            if video:
+                with open(os.path.join(destDir,f'{filename}-video{file_extension}'),"wb") as outfile:
+                    outfile.write(video)
+            else:
+                continue
             #Downloading and saving the audio
             print('Downloading audio file '+post['data']['media']['reddit_video']['fallback_url'])
             audio = download_file(f"{os.path.split(post['data']['media']['reddit_video']['fallback_url'])[0]}/DASH_audio.mp4")
-            with open(os.path.join(destDir,f'{filename}-audio{file_extension}'),'wb') as outfile:
-                outfile.write(audio)
+            if audio:
+                with open(os.path.join(destDir,f'{filename}-audio{file_extension}'),'wb') as outfile:
+                    outfile.write(audio)
+            else:
+                os.remove(tmp_video)
+                continue
             #Merging the audio and video into a destination file
             print('Merging audio and video file')
             try:
-                tmp_video = os.path.join(destDir,f'{filename}-video{file_extension}')
-                tmp_audio = os.path.join(destDir,f'{filename}-audio{file_extension}')
-                merged_file = os.path.join(destDir,f"{post['data']['media']['reddit_video']['fallback_url'].split('/')[3]}{file_extension}")
                 encoding = subprocess.check_output(f"ffmpeg -i {tmp_video} -i {tmp_audio} -c:v copy -c:a copy {merged_file}",shell=True)
             except subprocess.CalledProcessError as e:
                 print(e.__dict__)
             #Removing the temporary audio and video files
             print('Removing the temporary audio and video files')
-            os.remove(os.path.join(destDir,f'{filename}-audio{file_extension}'))
-            os.remove(os.path.join(destDir,f'{filename}-video{file_extension}'))
+            os.remove(tmp_audio)
+            os.remove(tmp_video)
 
 def getImages(subreddit, mode, limit, destDir):
     #Downloading the post list json
@@ -115,8 +122,11 @@ def getImages(subreddit, mode, limit, destDir):
         if os.path.splitext(filename)[-1] in allowedextimg:
             print('Downloading '+post['data']['url'])
             img = download_file(post['data']['url'])
-            with open(os.path.join(destDir,filename),"wb") as outfile:
-                outfile.write(img)
+            if img:
+                with open(os.path.join(destDir,filename),"wb") as outfile:
+                    outfile.write(img)
+            else:
+                continue
 
 def getPosts(subreddit, mode, limit, destDir):
     print("https://www.reddit.com/r/"+subreddit+"/"+mode+".json?limit="+str(limit))

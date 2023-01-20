@@ -8,6 +8,7 @@ import argparse
 import urllib.request
 import json
 from pathlib import Path
+import curses
 
 USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64; rv:101.0) Gecko/20100101 Firefox/101.0'
 CACHE_DIR = os.path.join(os.environ['HOME'],'.cache','pydit')
@@ -18,6 +19,7 @@ VID_DIR = os.path.join(os.getenv('HOME'),'pydit')
 
 allowedextvid = [".mp4"]
 allowedextimg = [".png",".jpg"]
+curses_subreddit = ''
 
 def copyFiles(src:str,dest:str):
     for root, dirs, files in os.walk(src,topdown=True):
@@ -229,6 +231,69 @@ def loadConfig():
     except:
         return False
 
+def updateCursesPicker(scr:curses.window,pad:curses.window, items:list, item_index:int):
+    scr.clrtobot()
+    pad.clrtobot()
+    scr.addstr(1,1,'Pydit - a reddit media scraper',curses.A_BOLD)
+    scr.addstr(2,1,'Please pick your favorite:')
+    i = 0
+    for item in items:
+        pad.clrtoeol()
+        if i == item_index:
+            pad.addstr(i,0,item,curses.color_pair(1))
+        else:
+            pad.addstr(i,0,item)
+        i +=1
+
+
+def cursesFavoritePicker(arg):
+    global curses_subreddit
+    selected_item = 0
+    favorites = []
+    scr = curses.initscr()
+    scr.keypad(True)
+    curses.curs_set(0)
+    curses.noecho()
+    curses.init_pair(4,curses.COLOR_GREEN, curses.COLOR_BLACK)
+    i = 0
+    with open(os.path.join(CONFIG_DIR,'favorites.txt'),'r') as filp:
+        for line in filp :
+            if line[-1] == '\n':
+                favorites.append(line[:-1])
+            else:
+                favorites.append(line)
+            i = i+1
+    pad = curses.newpad(len(favorites), curses.COLS -1)
+    updateCursesPicker(scr,pad,favorites,selected_item)
+    scr.refresh()
+    pad.refresh(0,0,3,1,curses.LINES-1,curses.COLS-2)
+    curses_subreddit = favorites[selected_item]
+    while(True):
+        key_pressed = scr.getch()
+        if key_pressed in [curses.KEY_ENTER,13,10]:
+            break
+        elif key_pressed == curses.KEY_UP:
+            if selected_item > 0:
+                selected_item -= 1
+                curses_subreddit = favorites[selected_item]
+                updateCursesPicker(scr,pad,favorites,selected_item)
+                scr.refresh()
+                if selected_item <= curses.LINES -2:
+                    pad.refresh(0,0,3,1,curses.LINES-1,curses.COLS -1)
+                else:
+                    pad.refresh(selected_item,0,3,1,curses.LINES-1,curses.COLS-1)
+        elif key_pressed == curses.KEY_DOWN:
+            if selected_item < len(favorites) -1:
+                selected_item += 1
+                curses_subreddit = favorites[selected_item]
+                updateCursesPicker(scr,pad,favorites,selected_item)
+                scr.refresh()
+                if selected_item <= curses.LINES -5:
+                    pad.refresh(0,0,3,1,curses.LINES-1,curses.COLS -1)
+                else:
+                    pad.refresh(selected_item,0,3,1,curses.LINES-1,curses.COLS-1)
+
+
 def getSubFromFavorites():
     subreddits = []
     i = 1
@@ -254,6 +319,7 @@ def main():
     parser.add_argument('-m', '--mode', dest='mode', help='Mode that the scraper will use, options: new, top, hot', required = True, type=str)
     parser.add_argument('-l', '--limit', dest='limit', help='How many posts will be downloaded',default=100, type=int)
     parser.add_argument('-f', '--favorite', action= 'store_true', dest='favorite', help='Choose option from favorite file',default=False)
+    parser.add_argument('-fc', '--favorite-curses', action= 'store_true', dest='favoritecurses', help='Choose option from favorite file using a curses UI',default=False)
     parser.add_argument('-t','--type',dest='mediatype',help='Media type to be downloaded, options:image ,video , text', type=str, default="image")
     parser.add_argument('-k', '--keep', action= 'store_true', dest='keepfiles', help='Keep the scraped files permanently',default=False)
     parser.add_argument('-n','--noexec', action= 'store_true', dest='noexec', help='Download only, will not execute any players/viewers',default=False)
@@ -271,8 +337,16 @@ def main():
     # Check if we are using the favorite subreddit list
     if args.favorite :
         sub = getSubFromFavorites()
-    else:
+    elif args.favoritecurses: # Or if we want to use our fancy new curses based ui to pick favorites
+        curses.wrapper(cursesFavoritePicker)
+        curses.reset_shell_mode()
+        if curses_subreddit != '':
+            sub = curses_subreddit
+        else:
+            sub = ''
+    else: # or if we want to get the subreddit from the command line argument 
         sub = args.subreddit
+    
     if sub == '' :
         print("No subreddit specified, quitting now.")
         exit()

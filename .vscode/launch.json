@@ -6,7 +6,7 @@
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "args": ["-s" ,"perfectlycutscreams","-m" ,"new","-t" ,"video","-k"],
+            "args": ["-fc","-m" ,"new","-t" ,"image","-k"],
             "console": "integratedTerminal",
             "justMyCode": true
         }

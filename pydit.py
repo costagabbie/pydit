@@ -254,7 +254,7 @@ def cursesFavoritePicker(arg):
     scr.keypad(True)
     curses.curs_set(0)
     curses.noecho()
-    curses.init_pair(4,curses.COLOR_GREEN, curses.COLOR_BLACK)
+    curses.init_pair(1,curses.COLOR_GREEN, curses.COLOR_BLACK)
     i = 0
     with open(os.path.join(CONFIG_DIR,'favorites.txt'),'r') as filp:
         for line in filp :

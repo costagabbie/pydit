@@ -28,7 +28,7 @@ def copyFiles(src:str,dest:str):
 
 def request_posts(subreddit:str,mode:str,limit:int):
     try:
-        url = f'https://www.reddit.com/r/{subreddit}/{mode}.json?limit={limit}'
+        url = f'https://www.reddit.com/r/{subreddit}/{mode}.json?limit={limit}'.replace(' ','%20')
         req = urllib.request.Request(
             url, 
             data=None, 
@@ -310,6 +310,17 @@ def getSubFromFavorites():
         exit()
     return subreddits[subreddit-1]
 
+def getAllFavorites():
+    subreddits = []
+    with open(os.path.join(CONFIG_DIR,'favorites.txt'),'r') as filp:
+        for line in filp :
+            if line[-1] == '\n':
+                subreddits.append(line[:-1])
+            else:
+                subreddits.append(line)
+    return subreddits
+
+
 def main():
     # Script title
     print("Pydit - a reddit media scraper")
@@ -324,6 +335,7 @@ def main():
     parser.add_argument('-k', '--keep', action= 'store_true', dest='keepfiles', help='Keep the scraped files permanently',default=False)
     parser.add_argument('-n','--noexec', action= 'store_true', dest='noexec', help='Download only, will not execute any players/viewers',default=False)
     parser.add_argument('-r','--re-setup',action='store_true',dest='resetup',help='Force the setup process to happen again.',default=False)
+    parser.add_argument('-a','-all',action='store_true',dest='downloadall',help='Download from all favorites ')
     args= parser.parse_args()
     # Check if the required directories exist on XDG config and cache user dirs
     if (not directoryExists(CACHE_DIR)) or (not directoryExists(CONFIG_DIR)) or args.resetup:
@@ -334,6 +346,22 @@ def main():
     # Check if the cache directory is empty, so we don't display repeated content from other runs
     if not directoryIsEmpty(CACHE_DIR):
         cleanDirectory(CACHE_DIR)
+    #Check if we are downloading everything on our favorite list
+    if args.downloadall:
+        if args.mediatype == 'image':
+            subs = getAllFavorites()
+            for subreddit in subs :
+                getImages(subreddit,args.mode.lower(),args.limit,CACHE_DIR)
+                saveCache(args.mediatype,subreddit)
+                cleanDirectory(CACHE_DIR)
+        if args.mediatype == 'video':
+            subs = getAllFavorites()
+            for subreddit in subs :
+                print(f"Downloading from {subreddit}")
+                getVideos(subreddit,args.mode.lower(),args.limit,CACHE_DIR)
+                saveCache(args.mediatype,subreddit)
+                cleanDirectory(CACHE_DIR)
+        
     # Check if we are using the favorite subreddit list
     if args.favorite :
         sub = getSubFromFavorites()

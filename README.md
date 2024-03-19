@@ -16,19 +16,32 @@ The project is currently feature complete, it download text posts, images and vi
 usage: pydit.py [-h] [-s SUBREDDIT] -m MODE [-l LIMIT] [-f]
 
 A reddit media scraper
+```
+  -s SUBREDDIT, --subreddit SUBREDDIT
 
-optional arguments:
+                        Subreddit to be scraped
 
-  -h, --help            show this help message and exit
-  
-  -s SUBREDDIT, --subreddit SUBREDDIT Subreddit to be scraped
-  
-  -m MODE, --mode MODE  Mode that the scraper will use, options: new, top, hot
-  
-  -l LIMIT, --limit LIMIT How many posts will be downloaded
-  
-  -f, --favorite        Choose option from favorite file
-  
-  -t MEDIATYPE, --type MEDIATYPE Media type to be downloaded, options:image ,video , text
-  
-  -k, --keep            Keep the scraped files permanently
+  -m MODE, --mode MODE  Mode that the scraper will use, options: new, top, hot
+
+  -l LIMIT, --limit LIMIT
+
+                        How many posts will be downloaded
+
+  -f, --favorite        Choose option from favorite file
+
+  -fc, --favorite-curses
+
+                        Choose option from favorite file using a curses UI
+
+  -t MEDIATYPE, --type MEDIATYPE
+
+                        Media type to be downloaded, options:image ,video ,
+
+                        text
+
+  -k, --keep            Keep the scraped files permanently
+
+  -n, --noexec          Download only, will not execute any players/viewers
+
+  -r, --re-setup        Force the setup process to happen again.
+```
